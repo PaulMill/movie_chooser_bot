@@ -1,0 +1,65 @@
+{
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "type": "AdaptiveCard",
+    "version": "1.0",
+    "body": [
+        {
+            "speak": "<s>Tom's Pie is a Pizza restaurant which is rated 9.3 by customers.</s>",
+            "type": "ColumnSet",
+            "columns": [
+                {
+                    "type": "Column",
+                    "width": 2,
+                    "items": [
+                        {
+                            "type": "TextBlock",
+                            "text": "PIZZA"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "Tom's Pie",
+                            "weight": "bolder",
+                            "size": "extraLarge",
+                            "spacing": "none"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "4.2 ★★★☆ (93) · $$",
+                            "isSubtle": true,
+                            "spacing": "none"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "**Matt H. said** \"I'm compelled",
+                            "size": "small",
+                            "wrap": true
+                        }
+                    ]
+                },
+                {
+                    "type": "Column",
+                    "width": 2,
+                    "items": [
+                        {
+                            "type": "Image",
+                            "url": "https://picsum.photos/300?image=882",
+                            "size": "auto"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "type": "Action.OpenUrl",
+            "title": "Info about movie",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        },
+        {
+            "type": "Action.OpenUrl",
+            "title": "Where to watch",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        }
+    ]
+}
