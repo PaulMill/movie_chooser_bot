@@ -13,24 +13,30 @@
                     "items": [
                         {
                             "type": "TextBlock",
-                            "text": "PIZZA"
+                            "text": "Movie"
                         },
                         {
                             "type": "TextBlock",
-                            "text": "Tom's Pie",
+                            "text": "Incredibles 2",
                             "weight": "bolder",
                             "size": "extraLarge",
                             "spacing": "none"
                         },
                         {
                             "type": "TextBlock",
-                            "text": "4.2 ★★★☆ (93) · $$",
+                            "text": "Vote Avarage: 7.6",
                             "isSubtle": true,
                             "spacing": "none"
                         },
                         {
                             "type": "TextBlock",
-                            "text": "**Matt H. said** \"I'm compelled",
+                            "text": "Release Date: 2018-06-14",
+                            "isSubtle": true,
+                            "spacing": "none"
+                        },
+                        {
+                            "type": "TextBlock",
+                            "text": "Elastigirl springs into action to save the day, while Mr. Incredible faces his greatest challenge yet – taking care of the problems of his three children.",
                             "size": "small",
                             "wrap": true
                         }
@@ -42,7 +48,7 @@
                     "items": [
                         {
                             "type": "Image",
-                            "url": "https://picsum.photos/300?image=882",
+                            "url": "https://image.tmdb.org/t/p/w300//x1txcDXkcM65gl7w20PwYSxAYah.jpg",
                             "size": "auto"
                         }
                     ]

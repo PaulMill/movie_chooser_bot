@@ -19,5 +19,6 @@ const genre = {
     war: 10752,
     western: 37
 }
+exports.genre = genre;
 
 exports.genre = genre;

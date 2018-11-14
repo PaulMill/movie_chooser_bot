@@ -54,7 +54,7 @@
       "version": "0.1",
       "region": "westus",
       "type": "luis",
-      "name": "BasicBotLuisApplication",
+      "name": "MovieBotLuisApplication",
       "id": "6"
     }
   ]

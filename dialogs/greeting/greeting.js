@@ -1,71 +1,60 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License.
 
-// greeting.js defines the greeting dialog
-
-// Import required Bot Builder
 const { ComponentDialog, WaterfallDialog, TextPrompt } = require('botbuilder-dialogs');
 
-// User state for greeting dialog
 const { UserProfile } = require('./userProfile');
+const { MovieDataBase } = require('../external_api/movieDataBase');
 
-// Minimum length requirements for city and name
-const CITY_LENGTH_MIN = 5;
 const NAME_LENGTH_MIN = 3;
 
-// Dialog IDs 
-const PROFILE_DIALOG = 'profileDialog';
+// Dialog IDs
+const USER_PROFILE_DIALOG = 'userProfileDialog';
 
 // Prompt IDs
 const NAME_PROMPT = 'namePrompt';
-const CITY_PROMPT = 'cityPrompt';
+const MOOD_PROMPT = 'moodPrompt';
+const MOVIE_CHOOSER_PROMPT = 'movieChooserPrompt';
+const RECOM_PROMPT = 'recomPrompt';
 
 const VALIDATION_SUCCEEDED = true;
 const VALIDATION_FAILED = !VALIDATION_SUCCEEDED;
 
-/**
- * Demonstrates the following concepts:
- *  Use a subclass of ComponentDialog to implement a multi-turn conversation
- *  Use a Waterfall dialog to model multi-turn conversation flow
- *  Use custom prompts to validate user input
- *  Store conversation and user state
- *
- * @param {String} dialogId unique identifier for this dialog instance
- * @param {PropertyStateAccessor} userProfileAccessor property accessor for user state
- */
+// Supported LUIS Intents.
+const MOVIE_CHOOSE_INTENT = 'MovieChoose';
+const MOOD_INTENT = 'Mood';
+// Supported LUIS Entities.
+const MOOD_POSITIVE = 'MoodPositive';
+const MOOD_NEGATIVE = 'MoodNegative';
+
+
 class Greeting extends ComponentDialog {
-    constructor(dialogId, userProfileAccessor) {
+    constructor(dialogId, userProfileAccessor, luisRecognizer) {
         super(dialogId);
 
         // validate what was passed in
         if (!dialogId) throw ('Missing parameter.  dialogId is required');
         if (!userProfileAccessor) throw ('Missing parameter.  userProfileAccessor is required');
 
-        // Add a water fall dialog with 4 steps.
-        // The order of step function registration is importent
-        // as a water fall dialog executes steps registered in order
-        this.addDialog(new WaterfallDialog(PROFILE_DIALOG, [
-            this.initializeStateStep.bind(this),
-            this.promptForNameStep.bind(this),
-            this.promptForCityStep.bind(this),
-            this.displayGreetingStep.bind(this)
-        ]));
-
-        // Add text prompts for name and city
-        this.addDialog(new TextPrompt(NAME_PROMPT, this.validateName));
-        this.addDialog(new TextPrompt(CITY_PROMPT, this.validateCity));
-
         // Save off our state accessor for later use
         this.userProfileAccessor = userProfileAccessor;
+        this.luisRecognizer = luisRecognizer;
+        this.dialogs = this.dialogs;
+
+        this.addDialog(new WaterfallDialog(USER_PROFILE_DIALOG, [
+            this.initializeStateStep.bind(this),
+            this.promptForNameStep.bind(this),
+            this.promptHowAreYouStep.bind(this),
+            this.promptChooseMovieStep.bind(this),
+            this.promptForRecommenrationStep.bind(this)
+        ]));
+
+            // Add text prompts for name and know mood
+            this.addDialog(new TextPrompt(NAME_PROMPT, this.validateName));
+            this.addDialog(new TextPrompt(MOOD_PROMPT));
+            this.addDialog(new TextPrompt(MOVIE_CHOOSER_PROMPT));
+            this.addDialog(new TextPrompt(RECOM_PROMPT));
+
     }
-    /**
-     * Waterfall Dialog step functions.
-     * 
-     * Initialize our state.  See if the WaterfallDialog has state pass to it
-     * If not, then just new up an empty UserProfile object
-     *
-     * @param {WaterfallStepContext} step contextual information for the current step being executed
-     */
+
     async initializeStateStep(step) {
         let userProfile = await this.userProfileAccessor.get(step.context);
         if (userProfile === undefined) {
@@ -77,19 +66,12 @@ class Greeting extends ComponentDialog {
         }
         return await step.next();
     }
-    /**
-     * Waterfall Dialog step functions.
-     *
-     * Using a text prompt, prompt the user for their name.
-     * Only prompt if we don't have this information already.
-     *
-     * @param {WaterfallStepContext} step contextual information for the current step being executed
-     */
+
     async promptForNameStep(step) {
         const userProfile = await this.userProfileAccessor.get(step.context);
         // if we have everything we need, greet user and return
-        if (userProfile !== undefined && userProfile.name !== undefined && userProfile.city !== undefined) {
-            return await this.greetUser(step);
+        if (userProfile !== undefined && userProfile.name !== undefined) {
+            return await step.next(-1); // skip this promptForNameStep step
         }
         if (!userProfile.name) {
             // prompt for name, if missing
@@ -98,52 +80,64 @@ class Greeting extends ComponentDialog {
             return await step.next();
         }
     }
-    /**
-     * Waterfall Dialog step functions.
-     *
-     * Using a text prompt, prompt the user for the city in which they live.
-     * Only prompt if we don't have this information already.
-     *
-     * @param {WaterfallStepContext} step contextual information for the current step being executed
-     */
-    async promptForCityStep(step) {
+
+    async promptHowAreYouStep(step) {
         // save name, if prompted for
         const userProfile = await this.userProfileAccessor.get(step.context);
+
         if (userProfile.name === undefined && step.result) {
             let lowerCaseName = step.result;
             // capitalize and set name
             userProfile.name = lowerCaseName.charAt(0).toUpperCase() + lowerCaseName.substr(1);
             await this.userProfileAccessor.set(step.context, userProfile);
         }
-        if (!userProfile.city) {
-            return await step.prompt(CITY_PROMPT, `Hello ${ userProfile.name }, what city do you live in?`);
-        } else {
-            return await step.next();
-        }
+        return await step.prompt(MOOD_PROMPT, `Hello ${userProfile.name}, How are you today?`);
     }
-    /**
-     * Waterfall Dialog step functions.
-     *
-     * Having all the data we need, simply display a summary back to the user.
-     *
-     * @param {WaterfallStepContext} step contextual information for the current step being executed
-     */
-    async displayGreetingStep(step) {
-        // Save city, if prompted for
+
+    async promptChooseMovieStep(step) {
+        // save name, if prompted for
         const userProfile = await this.userProfileAccessor.get(step.context);
-        if (userProfile.city === undefined && step.result) {
-            let lowerCaseCity = step.result;
-            // capitalize and set city
-            userProfile.city = lowerCaseCity.charAt(0).toUpperCase() + lowerCaseCity.substr(1);
-            await this.userProfileAccessor.set(step.context, userProfile);
+        const resultsLUIS = await this.luisRecognizer.recognize(step.context);
+        if (resultsLUIS.entities.hasOwnProperty(MOOD_POSITIVE)) {
+            userProfile.mood = MOOD_POSITIVE
+        } else if (resultsLUIS.entities.hasOwnProperty(MOOD_NEGATIVE)) {
+            userProfile.mood = MOOD_NEGATIVE
         }
-        return await this.greetUser(step);
+        await this.userProfileAccessor.set(step.context, userProfile);
+
+        if (userProfile.mood === MOOD_POSITIVE) {
+            await step.context.sendActivity('Good!');
+            return await step.next()
+        } else if (userProfile.mood === MOOD_NEGATIVE) {
+            await step.context.sendActivity("I'm detecting negative sentiment, maybe some funny movie can cheer you up?");
+            return await step.next()
+        } else {
+            return await step.next()
+        }
     }
-    /**
-     * Validator function to verify that user name meets required constraints.
-     *
-     * @param {PromptValidatorContext} validation context for this validator.
-     */
+    async promptForRecommenrationStep(step) {
+        step.values.movies = {}
+        const userProfile = await this.userProfileAccessor.get(step.context);
+        const movieDataBase = new MovieDataBase();
+
+        if (userProfile === undefined && userProfile.mood === undefined) {
+            await step.cancelAllDialogs(); // skip this promptForNameStep step
+            return await step.beginDialog('Greeting');
+        }
+
+        if (userProfile.mood === MOOD_POSITIVE) {
+            return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
+        } else if  (userProfile.mood === MOOD_NEGATIVE) {
+            const genre = '35';
+            const queryUrl = await movieDataBase.getMovieByGenge(genre);
+            const jsonData = await movieDataBase.getData(queryUrl).then( res => {
+                console.log('response: ' + JSON.stringify(res));
+            });
+            return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
+        }
+    }
+
+    //Validator function to verify that user name meets required constraints.
     async validateName(validatorContext) {
         // Validate that the user entered a minimum length for their name
         const value = (validatorContext.recognized.value || '').trim();
@@ -154,33 +148,13 @@ class Greeting extends ComponentDialog {
             return VALIDATION_FAILED;
         }
     }
-    /**
-     * Validator function to verify if city meets required constraints.
-     *
-     * @param {PromptValidatorContext} validation context for this validator.
-     */
-    async validateCity(validatorContext) {
-        // Validate that the user entered a minimum length for their name
-        const value = (validatorContext.recognized.value || '').trim();
-        if (value.length >= CITY_LENGTH_MIN) {
-            return VALIDATION_SUCCEEDED;
-        } else {
-            await validatorContext.context.sendActivity(`City names needs to be at least ${ CITY_LENGTH_MIN } characters long.`);
-            return VALIDATION_FAILED;
-        }
-    }
-    /**
-     * Helper function to greet user with information in greetingState.
-     *
-     * @param {WaterfallStepContext} step contextual information for the current step being executed
-     */
-    async greetUser(step) {
-        const userProfile = await this.userProfileAccessor.get(step.context);
-        // Display to the user their profile information and end dialog
-        await step.context.sendActivity(`Hi ${ userProfile.name }, from ${ userProfile.city }, nice to meet you!`);
-        await step.context.sendActivity(`You can always say 'My name is <your name> to reintroduce yourself to me.`);
-        return await step.endDialog();
-    }
+
+    // async greetUser(step) {
+    //     const userProfile = await this.userProfileAccessor.get(step.context);
+    //     // Display to the user their profile information and end dialog
+    //     await step.context.sendActivity(`Hi ${ userProfile.name }, from ${ userProfile.city }, nice to meet you!`);
+    //     return await step.endDialog();
+    // }
 }
 
 exports.GreetingDialog = Greeting;
