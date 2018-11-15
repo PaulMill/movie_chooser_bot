@@ -127,7 +127,6 @@ class Greeting extends ComponentDialog {
             await step.cancelAllDialogs(); // skip this promptForNameStep step
             return await step.beginDialog('Greeting');
         }
-
         if (userProfile.mood === MOOD_POSITIVE) {
             return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
         } else if  (userProfile.mood === MOOD_NEGATIVE) {
@@ -136,7 +135,6 @@ class Greeting extends ComponentDialog {
             const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
             const carouselCard = await MessageFactory.carousel(cardsAdaptive);
             await step.context.sendActivity(carouselCard); // show carousel cards
-
             return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
         }
     }
