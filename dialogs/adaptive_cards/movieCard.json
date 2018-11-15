@@ -3,69 +3,70 @@
     "type": "AdaptiveCard",
     "version": "1.0",
     "body": [
-        {
-            "speak": "<s>Tom's Pie is a Pizza restaurant which is rated 9.3 by customers.</s>",
-            "type": "ColumnSet",
-            "columns": [
-                {
-                    "type": "Column",
-                    "width": 2,
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "text": "Movie"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "Incredibles 2",
-                            "weight": "bolder",
-                            "size": "extraLarge",
-                            "spacing": "none"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "Vote Avarage: 7.6",
-                            "isSubtle": true,
-                            "spacing": "none"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "Release Date: 2018-06-14",
-                            "isSubtle": true,
-                            "spacing": "none"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "text": "Elastigirl springs into action to save the day, while Mr. Incredible faces his greatest challenge yet – taking care of the problems of his three children.",
-                            "size": "small",
-                            "wrap": true
-                        }
-                    ]
-                },
-                {
-                    "type": "Column",
-                    "width": 2,
-                    "items": [
-                        {
-                            "type": "Image",
-                            "url": "https://image.tmdb.org/t/p/w300//x1txcDXkcM65gl7w20PwYSxAYah.jpg",
-                            "size": "auto"
-                        }
-                    ]
-                }
+      {
+        "speak": "",
+        "type": "ColumnSet",
+        "columns": [
+          {
+            "type": "Column",
+            "width": 2,
+            "items": [
+              {
+                "type": "TextBlock",
+                "text": "Movie"
+              },
+              {
+                "type": "TextBlock",
+                "text": "Incredibles 2",
+                "weight": "bolder",
+                "size": "extraLarge",
+                "spacing": "none"
+              },
+              {
+                "type": "TextBlock",
+                "text": "Vote Avarage: 7.6",
+                "isSubtle": true,
+                "spacing": "none"
+              },
+              {
+                "type": "TextBlock",
+                "text": "Release Date: 2018-06-14",
+                "isSubtle": true,
+                "spacing": "none"
+              },
+              {
+                "type": "TextBlock",
+                "text": "Elastigirl springs into action to save the day, while Mr. Incredible faces his greatest challenge yet – taking care of the problems of his three children.",
+                "size": "small",
+                "wrap": true
+              }
             ]
-        }
+          },
+          {
+            "type": "Column",
+            "width": 2,
+            "items": [
+              {
+                "type": "Image",
+                "url": "https://image.tmdb.org/t/p/w200//x1txcDXkcM65gl7w20PwYSxAYah.jpg",
+                "size": "auto"
+              }
+            ]
+          }
+        ]
+      }
     ],
     "actions": [
-        {
-            "type": "Action.OpenUrl",
-            "title": "Info about movie",
-            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        },
-        {
-            "type": "Action.OpenUrl",
-            "title": "Where to watch",
-            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        }
+      {
+        "type": "Action.OpenUrl",
+        "title": "Info about movie",
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      },
+      {
+        "type": "Action.OpenUrl",
+        "title": "Where to watch",
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+      }
     ]
-}
+  }
+

@@ -1,14 +1,14 @@
 const https = require('https');
-const BASE_URL_PICS = 'https://image.tmdb.org/t/p/w200/';
-const BASE_URL_API = 'https://api.themoviedb.org/3/discover/movie'
+const BASE_URL_API = 'https://api.themoviedb.org/3/'
 
 
 class MovieDataBase {
-    async getMovieByGenge(genre, yyyy = null) {
-        const searchUrl = `${BASE_URL_API}?api_key=${process.env.TMBD_API_KEY}&language=en-US&with_genres=${genre}&sort_by=popularity.desc`
-
+    async movieByGengeURL(genre, yyyy = null) {
+        const searchUrl = `${BASE_URL_API}discover/movie?api_key=${process.env.TMBD_API_KEY}&language=en-US&with_genres=${genre}&sort_by=popularity.desc`
         return searchUrl;
-
+    }
+    async movieDetailsURL(id) {
+        return `${BASE_URL_API}movie/${id}?api_key=${process.env.TMBD_API_KEY}&language=en-US`
     }
 
     async getData(url) {
@@ -29,6 +29,7 @@ class MovieDataBase {
             request.on('error', err => reject(err))
         })
     }
+
 }
 
 exports.MovieDataBase = MovieDataBase;

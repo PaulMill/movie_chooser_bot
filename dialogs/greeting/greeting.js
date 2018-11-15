@@ -1,10 +1,13 @@
 
+const { MessageFactory, CardFactory } = require('botbuilder');
 const { ComponentDialog, WaterfallDialog, TextPrompt } = require('botbuilder-dialogs');
 
 const { UserProfile } = require('./userProfile');
 const { MovieDataBase } = require('../external_api/movieDataBase');
+const { Cards } = require('../adaptive_cards/cards'); // to get json with cards
 
 const NAME_LENGTH_MIN = 3;
+const CARDS_TO_SHOW_CAROUSEL = 3;
 
 // Dialog IDs
 const USER_PROFILE_DIALOG = 'userProfileDialog';
@@ -129,10 +132,11 @@ class Greeting extends ComponentDialog {
             return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
         } else if  (userProfile.mood === MOOD_NEGATIVE) {
             const genre = '35';
-            const queryUrl = await movieDataBase.getMovieByGenge(genre);
-            const jsonData = await movieDataBase.getData(queryUrl).then( res => {
-                console.log('response: ' + JSON.stringify(res));
-            });
+            const queryUrl = await movieDataBase.movieByGengeURL(genre);
+            const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
+            const carouselCard = await MessageFactory.carousel(cardsAdaptive);
+            await step.context.sendActivity(carouselCard); // show carousel cards
+
             return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
         }
     }
@@ -148,6 +152,19 @@ class Greeting extends ComponentDialog {
             return VALIDATION_FAILED;
         }
     }
+
+    async getJSONCards(data) {
+        let resultArr = data.results; // array of search results from external API
+        let indexStart = 0; // if array less than cards need to show on carousel
+        if(resultArr.length > CARDS_TO_SHOW_CAROUSEL) {
+            indexStart = Math.floor(Math.random()*Math.floor(resultArr.length - 1 - CARDS_TO_SHOW_CAROUSEL)); // get random index starting splice
+        }
+        const splisedArr = resultArr.splice(indexStart, CARDS_TO_SHOW_CAROUSEL);
+        const cards = new Cards(); // initiate object
+        const cardsArrJSON = await cards.getJSON(splisedArr); // get array of cards
+        return await cardsArrJSON.map( cardJSON => CardFactory.adaptiveCard(cardJSON));// create array of cards
+    }
+
 
     // async greetUser(step) {
     //     const userProfile = await this.userProfileAccessor.get(step.context);

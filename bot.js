@@ -146,13 +146,6 @@ class MovieBot {
         await this.userState.saveChanges(context);
     }
 
-    /**
-     * Look at the LUIS results and determine if we need to handle
-     * an interruptions due to a Help or Cancel intent
-     *
-     * @param {DialogContext} dc - dialog context
-     * @param {LuisResults} luisResults - LUIS recognizer results
-     */
     async isTurnInterrupted(dc, luisResults) {
         const topIntent = LuisRecognizer.topIntent(luisResults);
 
