@@ -8,10 +8,11 @@ const { Cards } = require('../adaptive_cards/cards'); // to get json with cards
 const genreList = require('../external_api/genre_movie'); // import genres from API
 
 const NAME_LENGTH_MIN = 3;
-const CARDS_TO_SHOW_CAROUSEL = 3;
+const CARDS_TO_SHOW_CAROUSEL = 5;
 
 // Dialog IDs
 const USER_PROFILE_DIALOG = 'userProfileDialog';
+const MOVIE_CHOOSE_DIALOG = 'movieChooseDialog';
 
 // Prompt IDs
 const NAME_PROMPT = 'namePrompt';
@@ -41,24 +42,25 @@ class Greeting extends ComponentDialog {
         // Save off our state accessor for later use
         this.userProfileAccessor = userProfileAccessor;
         this.luisRecognizer = luisRecognizer;
-        this.dialogs = this.dialogs;
 
         this.addDialog(new WaterfallDialog(USER_PROFILE_DIALOG, [
             this.initializeStateStep.bind(this),
             this.promptForNameStep.bind(this),
             this.promptHowAreYouStep.bind(this),
             this.promptChooseMovieStep.bind(this),
-            this.promptForRecommenrationStep.bind(this),
-            this.promptResponseRecommendation.bind(this),
-            this.setReleaseYear.bind(this)
+            this.promptForRecommenrationStep.bind(this)
         ]));
-
+        this.addDialog(new WaterfallDialog(MOVIE_CHOOSE_DIALOG, [
+            this.askForGenrePrompt.bind(this),
+            this.askForYearPrompt.bind(this),
+            this.resultShow.bind(this)
+        ]));
             // Add text prompts for name and know mood
-            this.addDialog(new TextPrompt(NAME_PROMPT, this.validateName));
-            this.addDialog(new TextPrompt(MOOD_PROMPT));
-            this.addDialog(new TextPrompt(MOVIE_CHOOSER_PROMPT));
-            this.addDialog(new TextPrompt(RECOM_PROMPT));
-            this.addDialog(new NumberPrompt(RELEASE_YEAR_PROMPT, this.validateYear));
+        this.addDialog(new TextPrompt(NAME_PROMPT, this.validateName));
+        this.addDialog(new TextPrompt(MOOD_PROMPT));
+        this.addDialog(new TextPrompt(MOVIE_CHOOSER_PROMPT));
+        this.addDialog(new TextPrompt(RECOM_PROMPT));
+        this.addDialog(new NumberPrompt(RELEASE_YEAR_PROMPT, this.validateYear));
 
     }
 
@@ -108,8 +110,6 @@ class Greeting extends ComponentDialog {
 
         // check if mood exist
         userProfile.mood = resultsLUIS.entities.hasOwnProperty(MOOD_NEGATIVE) ? MOOD_NEGATIVE : MOOD_POSITIVE;
-        // await step.next(-1);
-        // return await this.promptHowAreYouStep(step);
 
         await this.userProfileAccessor.set(step.context, userProfile);
 
@@ -117,33 +117,31 @@ class Greeting extends ComponentDialog {
             await step.context.sendActivity('Good!');
             return await step.next()
         } else if (userProfile.mood === MOOD_NEGATIVE) {
+            const carousel = await this.getCarousel('comedy', 2018);
             await step.context.sendActivity("I'm detecting negative sentiment, maybe some funny movie can cheer you up?");
+            await step.context.sendActivity(carousel); // show carousel cards
             return await step.next()
         } else {
             return await step.next()
         }
     }
     async promptForRecommenrationStep(step) {
-        step.values.movies = {}
         const userProfile = await this.userProfileAccessor.get(step.context);
-        const movieDataBase = new MovieDataBase(); // initialize external API call class
 
         if (userProfile === undefined && userProfile.mood === undefined) {
             await step.cancelAllDialogs(); // skip this promptForNameStep step
-            return await step.beginDialog('Greeting');
-        }
-        if (userProfile.mood === MOOD_POSITIVE) {
-            return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
-        } else if  (userProfile.mood === MOOD_NEGATIVE) {
-            const genre = '35';
-            const queryUrl = await movieDataBase.movieByGengeURL(genre);
-            const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
-            const carouselCard = await MessageFactory.carousel(cardsAdaptive);
-            await step.context.sendActivity(carouselCard); // show carousel cards
-            return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
+            return await step.beginDialog(USER_PROFILE_DIALOG);
+        } else {
+            await step.endDialog();
+            return await step.beginDialog(MOVIE_CHOOSE_DIALOG);
         }
     }
-    async promptResponseRecommendation(step) {
+
+    async askForGenrePrompt(step) {
+        return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
+    }
+
+    async askForYearPrompt(step) {
         const resultsLUIS = await this.luisRecognizer.recognize(step.context);
 
         // ternary operator if genre is exsist
@@ -151,42 +149,29 @@ class Greeting extends ComponentDialog {
         // ternary operator if year is exsist
         const year = resultsLUIS.entities.hasOwnProperty(NUMBER_YEAR) ? parseInt(resultsLUIS.entities.datetime[0].timex[0]) : null;
 
-        if (genre) {
-            if (genre && year) {
-                // do api call and show five recommendation
-                const genreID = genreList.genre[genre];
-                const movieDataBase = new MovieDataBase();
-                const queryUrl = await movieDataBase.movieByGengeURL(genreID, year);
-                const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
-                const carouselCard = await MessageFactory.carousel(cardsAdaptive);
-                await step.context.sendActivity(carouselCard); // show carousel cards
-
-                return await step.endDialog();
-
-            } else {
-                //save genre
-                step.values.movies.genre = genre;
-                // ask about Year release
-                return await step.prompt(RELEASE_YEAR_PROMPT, 'Enter a release year(in format YYYY) if you want to specify one, or just respond with something like "no" otherwise')
-            }
+        if (!genre) {
+            await step.endDialog();
+            return await step.beginDialog(MOVIE_CHOOSE_DIALOG);
+        } else if (!year) {
+            step.values.genre = genre;
+            return await step.prompt(RELEASE_YEAR_PROMPT, 'Enter a release year(in format YYYY) if you want to specify one, or just respond with something like "no" otherwise')
         } else {
-            await step.next();
-            return await this.promptForRecommenrationStep();
+            step.values.genre = genre;
+            step.values.year = year;
+            return step.next();
         }
     }
-
-    async setReleaseYear(step) {
-        if(step.result) {
-            if (Number.isNaN(parseInt(step.result))) {
-                // write code where "no" year entered
-            } else {
-                step.values.movies.year = parseInt(step.result);
-                // api call where genre and year release
-                await step.next()
-            }
+    async resultShow(step) {
+        let carousel;
+        if (!step.result) {
+            carousel = await this.getCarousel(step.values.genre, step.values.year);
+        } else {
+            carousel = await this.getCarousel(step.values.genre, step.result);
         }
+        await step.context.sendActivity(carousel); // show carousel cards
+        await step.endDialog();
+        return await step.beginDialog(MOVIE_CHOOSE_DIALOG);
     }
-
     async validateYear(validatorContext) {
         if (validatorContext.recognized.succeeded) {
             if (validatorContext.recognized.value <= 1900) {
@@ -198,7 +183,6 @@ class Greeting extends ComponentDialog {
         }
         return VALIDATION_FAILED;
     }
-
     //Validator function to verify that user name meets required constraints.
     async validateName(validatorContext) {
         // Validate that the user entered a minimum length for their name
@@ -210,26 +194,25 @@ class Greeting extends ComponentDialog {
             return VALIDATION_FAILED;
         }
     }
+    async getCarousel(genre, year = null) {
+        // do api call and show five recommendation
+        const genreID = genreList.genre[genre];
+        const movieDataBase = new MovieDataBase();
+        const queryUrl = await movieDataBase.movieByGengeURL(genreID, year);
+        const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
+        return await MessageFactory.carousel(cardsAdaptive);
+    }
 
     async getJSONCards(data) {
         let resultArr = data.results; // array of search results from external API
         let indexStart = 0; // if array less than cards need to show on carousel
         if(resultArr.length > CARDS_TO_SHOW_CAROUSEL) {
-            indexStart = Math.floor(Math.random()*Math.floor(resultArr.length - 1 - CARDS_TO_SHOW_CAROUSEL)); // get random index starting splice
+            indexStart = Math.floor(Math.random() * Math.floor(resultArr.length - 1 - CARDS_TO_SHOW_CAROUSEL)); // get random index starting splice
         }
         const splisedArr = resultArr.splice(indexStart, CARDS_TO_SHOW_CAROUSEL);
         const cards = new Cards(); // initiate object
         const cardsArrJSON = await cards.getJSON(splisedArr); // get array of cards
         return await cardsArrJSON.map( cardJSON => CardFactory.adaptiveCard(cardJSON));// create array of cards
     }
-
-
-    // async greetUser(step) {
-    //     const userProfile = await this.userProfileAccessor.get(step.context);
-    //     // Display to the user their profile information and end dialog
-    //     await step.context.sendActivity(`Hi ${ userProfile.name }, from ${ userProfile.city }, nice to meet you!`);
-    //     return await step.endDialog();
-    // }
 }
-
 exports.GreetingDialog = Greeting;
