@@ -23,12 +23,7 @@ const CANCEL_INTENT = 'Cancel';
 const HELP_INTENT = 'Help';
 const NONE_INTENT = 'None';
 
-// Supported LUIS Entities, defined in ./dialogs/greeting/resources/greeting.lu
-const USER_NAME_ENTITIES = ['userName', 'userName_patternAny'];
-
-
 class MovieBot {
-
     constructor(conversationState, userState, botConfig) {
         if (!conversationState) throw new Error('Missing parameter.  conversationState is required');
         if (!userState) throw new Error('Missing parameter.  userState is required');
@@ -68,11 +63,6 @@ class MovieBot {
             const results = await this.luisRecognizer.recognize(context);
             const topIntent = LuisRecognizer.topIntent(results);
 
-            // Based on LUIS topIntent, evaluate if we have an interruption.
-            // Interruption here refers to user looking for help/ cancel existing dialog
-
-            // Based on LUIS topIntent, evaluate if we have an interruption.
-            // Interruption here refers to user looking for help/ cancel existing dialog
             const interrupted = await this.isTurnInterrupted(dc, results);
             if (interrupted) {
                 if (dc.activeDialog !== undefined) {
@@ -115,7 +105,6 @@ class MovieBot {
                     }
             }
         } else if (context.activity.type === ActivityTypes.ConversationUpdate) {
-
             // Do we have any new members added to the conversation?
             if (context.activity.membersAdded.length !== 0) {
                 // Iterate over all new members added to the conversation
@@ -125,17 +114,13 @@ class MovieBot {
                     // context.activity.membersAdded == context.activity.recipient.Id indicates the
                     // bot was added to the conversation.
                     if (context.activity.membersAdded[idx].id !== context.activity.recipient.id) {
-                        // Welcome user.
-                        // When activity type is "conversationUpdate" and the member joining the conversation is the bot
-                        // we will send our Welcome Adaptive Card.  This will only be sent once, when the Bot joins conversation
-                        // To learn more about Adaptive Cards, see https://aka.ms/msbot-adaptivecards for more details.
+
                         const welcomeCard = CardFactory.adaptiveCard(WelcomeCard);
                         await context.sendActivity({ attachments: [welcomeCard] });
                     }
                 }
             }
         }
-
         // make sure to persist state at the end of a turn.
         await this.conversationState.saveChanges(context);
         await this.userState.saveChanges(context);
