@@ -20,5 +20,3 @@ const genre = {
     western: 37
 }
 exports.genre = genre;
-
-exports.genre = genre;

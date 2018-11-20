@@ -4,7 +4,12 @@ const BASE_URL_API = 'https://api.themoviedb.org/3/'
 
 class MovieDataBase {
     async movieByGengeURL(genre, yyyy = null) {
-        const searchUrl = `${BASE_URL_API}discover/movie?api_key=${process.env.TMBD_API_KEY}&language=en-US&with_genres=${genre}&sort_by=popularity.desc`
+        let searchUrl = '';
+        if(!yyyy) {
+            searchUrl = `${BASE_URL_API}discover/movie?api_key=${process.env.TMBD_API_KEY}&language=en-US&with_genres=${genre}&sort_by=popularity.desc`
+        } else {
+            searchUrl = `${BASE_URL_API}discover/movie?api_key=${process.env.TMBD_API_KEY}&language=en-US&with_genres=${genre}&primary_release_year=${yyyy}&sort_by=popularity.desc`
+        }
         return searchUrl;
     }
     async movieDetailsURL(id) {

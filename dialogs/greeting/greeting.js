@@ -1,10 +1,11 @@
 
 const { MessageFactory, CardFactory } = require('botbuilder');
-const { ComponentDialog, WaterfallDialog, TextPrompt } = require('botbuilder-dialogs');
+const { ComponentDialog, WaterfallDialog, TextPrompt, NumberPrompt } = require('botbuilder-dialogs');
 
 const { UserProfile } = require('./userProfile');
 const { MovieDataBase } = require('../external_api/movieDataBase');
 const { Cards } = require('../adaptive_cards/cards'); // to get json with cards
+const genreList = require('../external_api/genre_movie'); // import genres from API
 
 const NAME_LENGTH_MIN = 3;
 const CARDS_TO_SHOW_CAROUSEL = 3;
@@ -17,16 +18,16 @@ const NAME_PROMPT = 'namePrompt';
 const MOOD_PROMPT = 'moodPrompt';
 const MOVIE_CHOOSER_PROMPT = 'movieChooserPrompt';
 const RECOM_PROMPT = 'recomPrompt';
+const RELEASE_YEAR_PROMPT = 'releaseYearPrompt';
 
 const VALIDATION_SUCCEEDED = true;
 const VALIDATION_FAILED = !VALIDATION_SUCCEEDED;
 
-// Supported LUIS Intents.
-const MOVIE_CHOOSE_INTENT = 'MovieChoose';
-const MOOD_INTENT = 'Mood';
 // Supported LUIS Entities.
 const MOOD_POSITIVE = 'MoodPositive';
 const MOOD_NEGATIVE = 'MoodNegative';
+const ENTERTAINMENT_GENRE = 'Entertainment_Genre';
+const NUMBER_YEAR = 'datetime';
 
 
 class Greeting extends ComponentDialog {
@@ -47,7 +48,9 @@ class Greeting extends ComponentDialog {
             this.promptForNameStep.bind(this),
             this.promptHowAreYouStep.bind(this),
             this.promptChooseMovieStep.bind(this),
-            this.promptForRecommenrationStep.bind(this)
+            this.promptForRecommenrationStep.bind(this),
+            this.promptResponseRecommendation.bind(this),
+            this.setReleaseYear.bind(this)
         ]));
 
             // Add text prompts for name and know mood
@@ -55,6 +58,7 @@ class Greeting extends ComponentDialog {
             this.addDialog(new TextPrompt(MOOD_PROMPT));
             this.addDialog(new TextPrompt(MOVIE_CHOOSER_PROMPT));
             this.addDialog(new TextPrompt(RECOM_PROMPT));
+            this.addDialog(new NumberPrompt(RELEASE_YEAR_PROMPT, this.validateYear));
 
     }
 
@@ -101,11 +105,12 @@ class Greeting extends ComponentDialog {
         // save name, if prompted for
         const userProfile = await this.userProfileAccessor.get(step.context);
         const resultsLUIS = await this.luisRecognizer.recognize(step.context);
-        if (resultsLUIS.entities.hasOwnProperty(MOOD_POSITIVE)) {
-            userProfile.mood = MOOD_POSITIVE
-        } else if (resultsLUIS.entities.hasOwnProperty(MOOD_NEGATIVE)) {
-            userProfile.mood = MOOD_NEGATIVE
-        }
+
+        // check if mood exist
+        userProfile.mood = resultsLUIS.entities.hasOwnProperty(MOOD_NEGATIVE) ? MOOD_NEGATIVE : MOOD_POSITIVE;
+        // await step.next(-1);
+        // return await this.promptHowAreYouStep(step);
+
         await this.userProfileAccessor.set(step.context, userProfile);
 
         if (userProfile.mood === MOOD_POSITIVE) {
@@ -121,7 +126,7 @@ class Greeting extends ComponentDialog {
     async promptForRecommenrationStep(step) {
         step.values.movies = {}
         const userProfile = await this.userProfileAccessor.get(step.context);
-        const movieDataBase = new MovieDataBase();
+        const movieDataBase = new MovieDataBase(); // initialize external API call class
 
         if (userProfile === undefined && userProfile.mood === undefined) {
             await step.cancelAllDialogs(); // skip this promptForNameStep step
@@ -137,6 +142,61 @@ class Greeting extends ComponentDialog {
             await step.context.sendActivity(carouselCard); // show carousel cards
             return await step.prompt(RECOM_PROMPT, 'I know about movies, ask me a recommendation if you want');
         }
+    }
+    async promptResponseRecommendation(step) {
+        const resultsLUIS = await this.luisRecognizer.recognize(step.context);
+
+        // ternary operator if genre is exsist
+        const genre = resultsLUIS.entities.hasOwnProperty(ENTERTAINMENT_GENRE) ? resultsLUIS.entities[ENTERTAINMENT_GENRE][0] : null;
+        // ternary operator if year is exsist
+        const year = resultsLUIS.entities.hasOwnProperty(NUMBER_YEAR) ? parseInt(resultsLUIS.entities.datetime[0].timex[0]) : null;
+
+        if (genre) {
+            if (genre && year) {
+                // do api call and show five recommendation
+                const genreID = genreList.genre[genre];
+                const movieDataBase = new MovieDataBase();
+                const queryUrl = await movieDataBase.movieByGengeURL(genreID, year);
+                const cardsAdaptive = await movieDataBase.getData(queryUrl).then( res => this.getJSONCards(res)); // get data from external API, send data to create cards
+                const carouselCard = await MessageFactory.carousel(cardsAdaptive);
+                await step.context.sendActivity(carouselCard); // show carousel cards
+
+                return await step.endDialog();
+
+            } else {
+                //save genre
+                step.values.movies.genre = genre;
+                // ask about Year release
+                return await step.prompt(RELEASE_YEAR_PROMPT, 'Enter a release year(in format YYYY) if you want to specify one, or just respond with something like "no" otherwise')
+            }
+        } else {
+            await step.next();
+            return await this.promptForRecommenrationStep();
+        }
+    }
+
+    async setReleaseYear(step) {
+        if(step.result) {
+            if (Number.isNaN(parseInt(step.result))) {
+                // write code where "no" year entered
+            } else {
+                step.values.movies.year = parseInt(step.result);
+                // api call where genre and year release
+                await step.next()
+            }
+        }
+    }
+
+    async validateYear(validatorContext) {
+        if (validatorContext.recognized.succeeded) {
+            if (validatorContext.recognized.value <= 1900) {
+                await validatorContext.context.sendActivity(`Year can't be less then 1900. Should be in format YYYY`);
+                return VALIDATION_FAILED;
+            } else {
+                return VALIDATION_SUCCEEDED;
+            }
+        }
+        return VALIDATION_FAILED;
     }
 
     //Validator function to verify that user name meets required constraints.
