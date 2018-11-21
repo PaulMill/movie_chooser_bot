@@ -210,9 +210,15 @@ class Greeting extends ComponentDialog {
             indexStart = Math.floor(Math.random() * Math.floor(resultArr.length - 1 - CARDS_TO_SHOW_CAROUSEL)); // get random index starting splice
         }
         const splisedArr = resultArr.splice(indexStart, CARDS_TO_SHOW_CAROUSEL);
+
         const cards = new Cards(); // initiate object
         const cardsArrJSON = await cards.getJSON(splisedArr); // get array of cards
-        return await cardsArrJSON.map( cardJSON => CardFactory.adaptiveCard(cardJSON));// create array of cards
+        return await cardsArrJSON.map( cardJSON => {
+            // trim lond text in description on the card
+            let textOnCard = cardJSON.body[0].columns[0].items[4].text.slice(0, 400); // size of text not more than 400 symbols
+            cardJSON.body[0].columns[0].items[4].text = textOnCard;
+            return CardFactory.adaptiveCard(cardJSON) // create array of cards
+        });
     }
 }
 exports.GreetingDialog = Greeting;
